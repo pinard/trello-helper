@@ -1,0 +1,37 @@
+#+TITLE: trello-helper — Moving information between Trello and Emacs Org
+#+OPTIONS: H:2
+
+  *Now starting this project.  With some luck, it should soon be usable a bit!*
+
+** Goal
+
+This project aims [[http://orgmode.org/][Org (an Emacs mode)]] as a way for consulting or
+searching among [[https://trello.com/][Trello cards]].  *trello-helper* is the name of the Python
+program which, using the Trello API, fetches information from Trello.
+
+See Antoine Dumont's nice [[http://adumont.fr/blog/org-trello-sync-your-org-file-to-trello/][org-trello]] project for a more comprehensive,
+2-way sync, Emacs only solution.
+
+** History
+
+This is a rewrite of an old unpublished tool of mine, named
+*fetch-trello*.  It was using the Trello API to fetch all available
+Trello boards at once and turn them into a single Org format file,
+also providing diffs with the previous such Org file.  The tool was
+less useful than I expected: the result was a bit bulky, diffs were
+requiring too much scrutiny, and at the time, the Trello site was a
+bit flaky.
+
+Later, Antoine published *org-trello*, which is enthusiasming in many
+ways, especially for me by showing it is much more natural to use one
+Org file per Trello board, quite clever to use Trello ids to automate
+the merging of differences, useful to set a 2-way link rather than my
+pull-only.  Yet, *org-trello* does not fulfill all my needs.  One one
+hand, I'd like a different structuring in Org for Trello data, the
+capability of adding my own local-only comments with no danger of
+losing them later, and automated transcription between Markdown and
+Org markup.  On the other hand, I'd like something technically easier:
+Emacs Lisp is too heavy in many ways, *org-trello* depends on many
+packages (among which a precise version of Org which is older than the
+version I use — a weakness in the Emacs packaging system?), and uses
+asynchronous updates (distracting and difficult to rightly implement).
