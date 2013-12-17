@@ -15,6 +15,7 @@ If no BOARD, create a board index.  Produce the Org file on standard output.
 
 import sys
 import os
+import re
 
 config_file = os.path.expanduser('~/.trello/config.ini')
 encoding = 'UTF-8'
@@ -110,7 +111,7 @@ class Main:
                                         date=comment['date'][:10],
                                         id=comment['id'])
                         text = self.from_markdown(comment['data']['text'])
-                        text = ''.join('  ' + line
+                        text = ''.join(('  ' + line).rstrip()
                                        for line in text.splitlines(True))
                         if not text.endswith('\n'):
                             text += '\n'
@@ -129,7 +130,7 @@ class Main:
         self.write('*' * level + ' ')
         if done is not None:
             self.write(('TODO', 'DONE')[done] + ' ')
-        self.write(self.from_markdown(text.strip()) + '\n')
+        self.write(self.from_markdown(text.lstrip()) + '\n')
         if id:
             self.write(':PROPERTIES:\n'
                        ':orgtrello-id: %s\n'
@@ -150,9 +151,9 @@ class Main:
         if done is not None:
             self.write('[%s] ' % ' X'[done])
         if url:
-            self.write('[[%s][%s]]' % (url, self.from_markdown(text.strip())))
+            self.write('[[%s][%s]]' % (url, self.from_markdown(text.lstrip())))
         else:
-            self.write(self.from_markdown(text.strip()))
+            self.write(self.from_markdown(text.lstrip()))
         if date:
             self.write(' [%s]' % date)
         if id:
@@ -160,7 +161,8 @@ class Main:
         self.write('\n')
 
     def from_markdown(self, text):
-        return text
+        text = '\n'.join(line.rstrip() for line in text.split('\n'))
+        return re.sub('\n\n\n+', '\n\n', text)
 
 ## Directement la date cause un problème dans Org.
 
