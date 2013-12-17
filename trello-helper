@@ -1,0 +1,172 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""\
+Help communication between Trello site and Emacs Org files.
+See https://github.com/pinard/trello-helper for details.
+
+Usage: fetch-trello [OPTION] [BOARD]
+
+Options:
+  -i   Inspect mode (embed IPython after connect).
+
+If no BOARD, create a board index.  Produce the Org file on standard output.
+"""
+
+import sys
+import os
+
+config_file = os.path.expanduser('~/.trello/config.ini')
+encoding = 'UTF-8'
+
+
+class Main:
+    inspect = False
+
+    def main(self, *arguments):
+
+        # Decode options.
+        import getopt
+        options, arguments = getopt.getopt(arguments, 'i')
+        for option, value in options:
+            if option == '-i':
+                self.inspect = True
+
+        # Prepare UTF-8 output.
+        import codecs
+        self.write = codecs.getwriter(encoding)(sys.stdout).write
+
+        # Connect.
+        from ConfigParser import ConfigParser
+        parser = ConfigParser()
+        parser.read(config_file)
+        from trello import TrelloClient
+        self.client = TrelloClient(parser.get('trello', 'key'),
+                                   parser.get('trello', 'token'))
+
+        # Use IPython to inspect if option -i has been given.
+        if self.inspect:
+            try:
+                import IPython
+                from IPython.config.loader import Config
+            except ImportError:
+                import pprint
+                sys.displayhook = pprint.pprint
+
+                import atexit, readline, rlcompleter
+                readline.parse_and_bind('tab: complete')
+                history = os.path.expanduser('~/.trello/history')
+                if os.path.exists(history):
+                    readline.read_history_file(history)
+                atexit.register(readline.write_history_file, history)
+
+                del atexit, history, pprint, readline, rlcompleter
+            else:
+                config = Config()
+                prompt = 'trello-helper'
+                config.PromptManager.in_template = '%s [\\#]> ' % prompt
+                config.PromptManager.out_template = '%s [\\#]: ' % prompt
+                IPython.embed(config=config, user_ns={'self': self})
+            return
+
+        # Fetch Trello data and produce an Org file.
+        if arguments:
+            self.copy_board(arguments[0].decode(encoding))
+        else:
+            self.list_boards()
+
+    def copy_board(self, name):
+        for board in self.client.list_boards():
+            if board.name.decode(encoding) == name:
+                break
+        else:
+            sys.exit("No such board: %s" % name)
+        self.write("#+TITLE: Trello board %s\n"
+                   '#+STARTUP: content\n'
+                   % name)
+        for list in board.open_lists():
+            self.write_header(1, list.name.decode(encoding), id=list.id)
+            for card in list.list_cards():
+                card.fetch()
+                try:
+                    date = card.create_date.strftime('%Y-%m-%d')
+                except IndexError:
+                    date = None
+                self.write_header(
+                    2, card.name.decode(encoding),
+                    done=card.closed or None,
+                    date=date, id=card.id, url=card.url)
+                if card.description:
+                    self.write_item(card.description)
+                for checklist in card.checklists:
+                    self.write_header(3, checklist.name, id=checklist.id)
+                    for item in checklist.items:
+                        self.write_item(item['name'],
+                                        done=item['checked'], id=item['id'])
+                if card.comments:
+                    self.write_header(3, 'Comments')
+                    for comment in card.comments:
+                        self.write_item(comment['memberCreator']['username'],
+                                        date=comment['date'][:10],
+                                        id=comment['id'])
+                        text = self.from_markdown(comment['data']['text'])
+                        text = ''.join('  ' + line
+                                       for line in text.splitlines(True))
+                        if not text.endswith('\n'):
+                            text += '\n'
+                        self.write(text)
+
+    def list_boards(self):
+        self.write("#+TITLE: Trello board index\n"
+                   '#+STARTUP: showall\n'
+                   "* Trello boards\n")
+        for board in self.client.list_boards():
+            self.write_item(board.name.decode(encoding),
+                            done=board.closed, id=board.id, url=board.url)
+
+    def write_header(self, level, text,
+                     date=None, done=None, id=None, url=None):
+        self.write('*' * level + ' ')
+        if done is not None:
+            self.write(('TODO', 'DONE')[done] + ' ')
+        self.write(self.from_markdown(text.strip()) + '\n')
+        if id:
+            self.write(':PROPERTIES:\n'
+                       ':orgtrello-id: %s\n'
+                       ':END:'
+                       '\n'
+                       % id)
+        if date or url:
+            if url:
+                self.write('([[%s][Trello]])' % url)
+            if date and url:
+                self.write(' ')
+            if date:
+                self.write('[%s]' % date)
+            self.write('\n')
+
+    def write_item(self, text, date=None, done=None, id=None, url=None):
+        self.write('- ')
+        if done is not None:
+            self.write('[%s] ' % ' X'[done])
+        if url:
+            self.write('[[%s][%s]]' % (url, self.from_markdown(text.strip())))
+        else:
+            self.write(self.from_markdown(text.strip()))
+        if date:
+            self.write(' [%s]' % date)
+        if id:
+            self.write(' :PROPERTIES: {"orgtrello-id":"%s"}' % id)
+        self.write('\n')
+
+    def from_markdown(self, text):
+        return text
+
+## Directement la date cause un problème dans Org.
+
+
+run = Main()
+main = run.main
+
+if __name__ == '__main__':
+    main(*sys.argv[1:])

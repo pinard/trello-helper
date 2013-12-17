@@ -1,8 +1,6 @@
 #+TITLE: trello-helper — Moving information between Trello and Emacs Org
 #+OPTIONS: H:2
 
-  *Now starting this project.  With some luck, it should soon be usable a bit!*
-
 ** Goal
 
 This project aims [[http://orgmode.org/][Org (an Emacs mode)]] as a way for consulting or
@@ -10,7 +8,71 @@ searching among [[https://trello.com/][Trello cards]].  *trello-helper* is the n
 program which, using the Trello API, fetches information from Trello.
 
 See Antoine Dumont's nice [[http://adumont.fr/blog/org-trello-sync-your-org-file-to-trello/][org-trello]] project for a more comprehensive,
-2-way sync, Emacs only solution.
+real-time, 2-way sync, Emacs only solution.
+
+** Installation
+
+Install file =trello-helper= as an executable script somewhere on your
+usual program search path.  It assumes that *python*, as a program name,
+triggers Python 2.x (I only tried with Python 2.7.5).  The program
+depends on two Python modules: *py-trello* and a patched version of
+*python-oauth2*.  Here is a recipe installing both:
+
+  #+BEGIN_SRC sh
+    git clone https://github.com/tylerwilliams/python-oauth2
+    (cd python-oauth2/ && python setup.py install)
+    git clone https://github.com/sarumont/py-trello
+    (cd py-trello/ && python setup.py install)
+  #+END_SRC
+
+OAuth2 credentials for your Trello board should be obtained and preset
+within file =~/.trello/config.ini=, like this:
+
+  #+BEGIN_EXAMPLE
+    [trello]
+    key = 0123456789abcdef0123456789abcdef
+    token = 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  #+END_EXAMPLE
+
+replacing the hexadecimal values appropriately, of course.  Visit the
+page about [[https://trello.com/1/appKey/generate][Developer API Keys]] to get the needed values.
+
+Here is some Emacs Lisp code which hides information about Trello ids.
+You may put the following lines in your =~/.emacs= file:
+
+  #+BEGIN_SRC elisp
+    (defun my-org-mode-hook ()
+      (font-lock-add-keywords
+       nil '((" *:PROPERTIES: {\"orgtrello-id\":[^}\n]+}"
+              (0 (add-text-properties (match-beginning 0) (match-end 0)
+                                      '(invisible org-link)))))))
+
+    (add-hook 'org-mode-hook 'my-org-mode-hook)
+  #+END_SRC
+
+** Usage
+
+To get an index file reaching all you Trello boards, do something like:
+
+  #+BEGIN_SRC sh
+    trello-helper > boards.org
+  #+END_SRC
+
+To initialize a copy of a Trello board named =BOARD NAME=, do:
+
+  #+BEGIN_SRC sh
+    trello-helper 'BOARD NAME' > board_name.org
+  #+END_SRC
+
+** Random notes
+
+- To ease file inter-operability a tiny bit, and some collaboration
+  with Antoine, properties are named as in *org-trello*.
+
+- The tool works completely off-line.  There is no real-time
+  communication yet between Emacs and *trello-helper*.
+
+- Next might be a mild transcription from Markdown to Org markup.
 
 ** History
 
