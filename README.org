@@ -62,7 +62,8 @@ interactive capabilities, while there is none added as of today.
 
 ** Usage
 
-To get an index file reaching all you Trello boards, do something like:
+To get an index file reaching all you Trello boards, do something
+like:
 
   #+BEGIN_SRC sh
     trello-helper > boards.org
@@ -73,6 +74,18 @@ To initialize a copy of a Trello board named =BOARD NAME=, do:
   #+BEGIN_SRC sh
     trello-helper 'BOARD NAME' > board_name.org
   #+END_SRC
+
+The *trello-helper* script accepts these options:
+
+  - -d :: This option triggers debugging.  Once the program has
+          established itself as a Trello client, it triggers an
+          IPython interactive session, with *self* initialized as the
+          /Main/ instance.
+
+  - -i :: This option forces the inclusion of closed boards, lists and
+          cards in the produced Org file, as these are normally
+          excluded.  When this option is used, indicators like =TODO= or
+          =DONE= are added respectively for opened and closed elements.
 
 ** Random notes
 
