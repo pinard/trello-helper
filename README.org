@@ -37,18 +37,19 @@ within file =~/.trello/config.ini=, like this:
 replacing the hexadecimal values appropriately, of course.  Visit the
 page about [[https://trello.com/1/appKey/generate][Developer API Keys]] to get the needed values.
 
-Here is some Emacs Lisp code which hides information about Trello ids.
-You may put the following lines in your =~/.emacs= file:
+The provided =trello-helper.el= file has the purpose of adding a bit of
+comfort within Emacs, while visiting Org files produced by
+*trello-helper*.  There are a few ways to activate it, for example by
+adding its contents to your own =~/.emacs= file.  I prefer putting that
+file somewhere on the Emacs load path, and adding that single line
+instead:
 
   #+BEGIN_SRC elisp
-    (defun my-org-mode-hook ()
-      (font-lock-add-keywords
-       nil '((" *:PROPERTIES: {\"orgtrello-id\":[^}\n]+}"
-              (0 (add-text-properties (match-beginning 0) (match-end 0)
-                                      '(invisible org-link)))))))
-
-    (add-hook 'org-mode-hook 'my-org-mode-hook)
+    (load-library "trello-helper")
   #+END_SRC
+
+In some later version of *trello-helper*, that Lisp file might implement
+interactive capabilities, while there is none added as of today.
 
 ** Usage
 
