@@ -6,9 +6,18 @@
 This project aims [[http://orgmode.org/][Org (an Emacs mode)]] as a way for consulting or
 searching among [[https://trello.com/][Trello cards]].  *trello-helper* is the name of the Python
 program which, using the Trello API, fetches information from Trello.
+The resulting Org file contains clickable links, which open the
+corresponding Trello card right in the browser.  As I have a lot of
+notes in Org format already, and an [[https://github.com/pinard/org-grep][efficient tool]] to search them, it
+is convenient being able to search both Org and Trello in one swoop.
 
-See Antoine Dumont's nice [[http://adumont.fr/blog/org-trello-sync-your-org-file-to-trello/][org-trello]] project for a more comprehensive,
-real-time, 2-way sync, Emacs only solution.
+The tool is currently unable to merge in recent changes on the Trello
+side since last copy.  It would be useful to have mechanics to allow
+for local-only annotations in the Org files.  The produced Org files
+already get internal Trello ids in view of such a later capability.
+
+See Antoine Dumont's nice [[http://adumont.fr/blog/org-trello-sync-your-org-file-to-trello/][org-trello]] project for a comprehensive,
+mature, real-time, 2-way sync, Emacs only solution.
 
 ** Installation
 
@@ -67,13 +76,15 @@ To initialize a copy of a Trello board named =BOARD NAME=, do:
 
 ** Random notes
 
+- Markdown gets mildly transcribed to Org markup, using heuristics to
+  address a few common cases.  As Org markup is rather constrained
+  anyway, I do not think it is possible to really solve this problem.
+
 - To ease file inter-operability a tiny bit, and some collaboration
   with Antoine, properties are named as in *org-trello*.
 
-- The tool works completely off-line.  There is no real-time
+- The tool currently works completely off-line.  There is no real-time
   communication yet between Emacs and *trello-helper*.
-
-- Next might be a mild transcription from Markdown to Org markup.
 
 ** History
 
