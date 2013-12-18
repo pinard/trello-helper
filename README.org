@@ -18,14 +18,13 @@ mature, real-time, 2-way sync, Emacs only solution.
 Install file =trello-helper= as an executable script somewhere on your
 usual program search path.  It assumes that *python*, as a program name,
 triggers Python 2.x (I only tried with Python 2.7.5).  The program
-depends on other Python modules: *py-trello*, a patched version of
-*pyperclip* and a patched version of *python-oauth2*.  Here is a recipe
-for these:
+depends on other Python modules: *py-trello*, *pyperclip* and a patched
+version of *python-oauth2*.  Here is a recipe for these:
 
   #+BEGIN_SRC sh
     git clone https://github.com/tylerwilliams/python-oauth2
     (cd python-oauth2/ && python setup.py install)
-    git clone https://github.com/pinard/pyperclip
+    git clone https://github.com/gfxmonk/pyperclip
     (cd pyperclip && python setup.py install)
     git clone https://github.com/sarumont/py-trello
     (cd py-trello/ && python setup.py install)
