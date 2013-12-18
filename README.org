@@ -6,15 +6,9 @@
 This project aims [[http://orgmode.org/][Org (an Emacs mode)]] as a way for consulting or
 searching among [[https://trello.com/][Trello cards]].  *trello-helper* is the name of the Python
 program which, using the Trello API, fetches information from Trello.
-The resulting Org file contains clickable links, which open the
-corresponding Trello card right in the browser.  As I have a lot of
-notes in Org format already, and an [[https://github.com/pinard/org-grep][efficient tool]] to search them, it
-is convenient being able to search both Org and Trello in one swoop.
-
-The tool is currently unable to merge in recent changes on the Trello
-side since last copy.  It would be useful to have mechanics to allow
-for local-only annotations in the Org files.  The produced Org files
-already get internal Trello ids in view of such a later capability.
+As I have a lot of notes in Org format already, and an [[https://github.com/pinard/org-grep][efficient tool]]
+to search them, it is convenient for me being able to search both Org
+and Trello in one swoop.
 
 See Antoine Dumont's nice [[http://adumont.fr/blog/org-trello-sync-your-org-file-to-trello/][org-trello]] project for a comprehensive,
 mature, real-time, 2-way sync, Emacs only solution.
@@ -24,15 +18,21 @@ mature, real-time, 2-way sync, Emacs only solution.
 Install file =trello-helper= as an executable script somewhere on your
 usual program search path.  It assumes that *python*, as a program name,
 triggers Python 2.x (I only tried with Python 2.7.5).  The program
-depends on two Python modules: *py-trello* and a patched version of
-*python-oauth2*.  Here is a recipe installing both:
+depends on other Python modules: *py-trello*, a patched version of
+*pyperclip* and a patched version of *python-oauth2*.  Here is a recipe
+for these:
 
   #+BEGIN_SRC sh
     git clone https://github.com/tylerwilliams/python-oauth2
     (cd python-oauth2/ && python setup.py install)
+    git clone https://github.com/pinard/pyperclip
+    (cd pyperclip && python setup.py install)
     git clone https://github.com/sarumont/py-trello
     (cd py-trello/ && python setup.py install)
   #+END_SRC
+
+You might need to install other programs (like *xclip* for Linux); see
+[[https://github.com/gfxmonk/pyperclip][pyperclip documentation]] for details.
 
 OAuth2 credentials for your Trello board should be obtained and preset
 within file =~/.trello/config.ini=, like this:
@@ -57,23 +57,45 @@ instead:
     (load-library "trello-helper")
   #+END_SRC
 
-In some later version of *trello-helper*, that Lisp file might implement
-interactive capabilities, while there is none added as of today.
+It is also a good idea to bind function *trello-helper-to-clipboard* to
+some key.  For one, I added this other line to my =~/.emacs= file:
+
+  #+BEGIN_SRC elisp
+    (define-key org-mode-map "\C-com" 'trello-helper-to-clipboard)
+  #+END_SRC
+
+If the *trello-helper* script is not on the program search path used by
+Emacs, one may have to explicit it with a line like this one:
+
+  #+BEGIN_SRC elisp
+    (setq trello-helper-command "/SOME/PATH/TO/trello-helper")
+  #+END_SRC
 
 ** Usage
 
-To get an index file reaching all you Trello boards, do something
-like:
+To create an index file in Org format reaching all you Trello boards,
+do something like this in a shell:
 
   #+BEGIN_SRC sh
-    trello-helper > boards.org
+    trello-helper > Boards.org
   #+END_SRC
 
-To initialize a copy of a Trello board named =BOARD NAME=, do:
+To initialize an Org format copy of a Trello board named =BOARD NAME=,
+do a command like this in a shell:
 
   #+BEGIN_SRC sh
-    trello-helper 'BOARD NAME' > board_name.org
+    trello-helper 'BOARD NAME' > Board_Name.org
   #+END_SRC
+
+When visiting such an Org format file within Emacs, you'll find links
+that you may click on (or use *C-c C-o* if you prefer), with the effect
+of getting your Web browser to display the corresponding Trello card.
+Also, to copy and paste some Org text from Emacs into Trello, first
+select the region to copy, then use *M-x trello-helper-to-clipboard* or
+*C-c o m* (or whatever keybinding you put aside for that command), and
+only then paste the content at the appropriate place within a Trello
+card in your browser.  By doing it this way, the Org markup gets
+rewritten so it displays more correctly within Trello pages.
 
 The *trello-helper* script accepts these options:
 
@@ -87,17 +109,24 @@ The *trello-helper* script accepts these options:
           excluded.  When this option is used, indicators like =TODO= or
           =DONE= are added respectively for opened and closed elements.
 
+  - -m :: This option reads some Org text from standard input, does a
+          half-hearted transcription of its inline markup to Markdown,
+          then loads the result into the system clipboard.  This helps
+          the *trello-helper-to-clipboard* function in =trello-helper.el=.
+
 ** Random notes
 
-- Markdown gets mildly transcribed to Org markup, using heuristics to
-  address a few common cases.  As Org markup is rather constrained
+- Markdown to Org markup and back is approximative, it uses heuristics
+  to address a few common cases.  As Org markup is rather constrained
   anyway, I do not think it is possible to really solve this problem.
 
-- To ease file inter-operability a tiny bit, and some collaboration
-  with Antoine, properties are named as in *org-trello*.
+- To ease file inter-operability a tiny bit, and favor some later
+  collaboration with Antoine, properties are named as in *org-trello*.
 
-- The tool currently works completely off-line.  There is no real-time
-  communication yet between Emacs and *trello-helper*.
+- The tool is currently unable to merge recent changes which occurred
+  on the Trello side since last copy.  Merging would allow for
+  local-only annotations in the Org files.  In view of such mechanics,
+  the produced Org files already convey internal Trello ids.
 
 ** History
 
