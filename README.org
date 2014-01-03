@@ -45,15 +45,21 @@ within file =~/.trello/config.ini=, like this:
 replacing the hexadecimal values appropriately, of course.  Visit the
 page about [[https://trello.com/1/appKey/generate][Developer API Keys]] to get the needed values.
 
-The provided =trello-helper.el= file has the purpose of adding a bit of
-comfort within Emacs, while visiting Org files produced by
-*trello-helper*.  There are a few ways to activate it, for example by
-adding its contents to your own =~/.emacs= file.  I prefer putting that
-file somewhere on the Emacs load path, and adding that single line
-instead:
+The provided =trello-helper.el= file adds a bit of comfort within
+Emacs while visiting Org files produced by *trello-helper*.  It runs
+the hook functions added to *trello-helper-mode-hook*.  One of these
+functions is preset, it hides the information about Trello ids.  You
+may add your own hooks.  For example, I like to display all card
+titles while visiting such files, so I copy the =trello-help.el= file
+somewhere on the Emacs load path, and put these lines in =~/.emacs=:
 
   #+BEGIN_SRC elisp
     (load-library "trello-helper")
+
+    (defun fp-trello-helper-mode-hook ()
+      (org-content 2))
+
+    (add-hook 'trello-helper-mode-hook 'fp-trello-helper-mode-hook)
   #+END_SRC
 
 It is also a good idea to bind function *trello-helper-to-clipboard* to

@@ -101,7 +101,7 @@ class Main:
 
     def copy_board(self, board):
         self.write("#+TITLE: Trello board %s\n"
-                   '#+STARTUP: content\n'
+                   '#+STARTUP: overview\n'
                    % board.name.decode(encoding))
         for list in board.all_lists():
             if self.include or not list.closed:
