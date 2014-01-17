@@ -8,14 +8,20 @@ See https://github.com/pinard/trello-helper for details.
 Usage: fetch-trello [OPTION] [BOARD]
 
 Options:
+  -a   Automatically produce Org files for all Trello boards.
   -d   Debug mode (embed IPython after connect).
-  -i   Also include closed boards, lists and cards.
+  -h   Produce this help and exit.
+  -i   Also include closed Trello boards, lists and cards.
+  -l   List, one per line, the Org file name and the Trello board name.
   -m   Transcribe Org inline markup to Markdown.
 
-If no BOARD, create a board index.  Produce the Org file on standard output.
+Output file is BOARD_NAME.org, replacing punctuation sequences by _.
+If BOARD is "Trello board index", then generate a board index.
+Options -al also include the board index.  Do not specify BOARD with -adlm.
 With -m, read text from standard input, load the result onto the clipboard.
 """
 
+import codecs
 import sys
 import os
 import re
@@ -27,28 +33,47 @@ encoding = 'UTF-8'
 before_emphasis = ' \t\n(\'"{'
 after_emphasis = '- \t\n.,:!?;\'")}\\'
 
+index_name = "Trello board index"
+
 
 class Main:
+    auto = False
     debug = False
     include = False
+    lines = False
     markdown = False
 
     def main(self, *arguments):
 
         # Decode options.
         import getopt
-        options, arguments = getopt.getopt(arguments, 'dim')
+        options, arguments = getopt.getopt(arguments, 'adhilm')
         for option, value in options:
-            if option == '-d':
+            if option == '-a':
+                self.auto = True
+            elif option == '-d':
                 self.debug = True
             elif option == '-i':
                 self.include = True
+            elif option == '-h':
+                sys.stdout.write(__doc__)
+                return
+            elif option == '-l':
+                self.lines = True
             elif option == '-m':
                 self.markdown = True
-
-        # Prepare UTF-8 output.
-        import codecs
-        self.write = codecs.getwriter(encoding)(sys.stdout).write
+        if self.auto or self.debug or self.lines or self.markdown:
+            if arguments:
+                sys.stderr.write(
+                    "Do not use BOARD with -adlm. Try `%s -h' for help.\n"
+                    % os.path.basename(sys.argv[0]))
+                sys.exit(1)
+        else:
+            if len(arguments) != 1:
+                sys.stderr.write(
+                    "Use a single BOARD argument, try `%s -h' for help.\n"
+                    % os.path.basename(sys.argv[0]))
+                sys.exit(1)
 
         # Specially handle the case of copying to the clipboard.
         if self.markdown:
@@ -76,7 +101,9 @@ class Main:
                 import pprint
                 sys.displayhook = pprint.pprint
 
-                import atexit, readline, rlcompleter
+                import atexit
+                import readline
+                import rlcompleter
                 readline.parse_and_bind('tab: complete')
                 history = os.path.expanduser('~/.trello/debug-history')
                 if os.path.exists(history):
@@ -92,61 +119,97 @@ class Main:
                 IPython.embed(config=config, user_ns={'self': self})
             return
 
-        # Fetch Trello data and produce an Org file.
-        if arguments:
-            board = self.find_board(arguments[0].decode(encoding))
-            self.copy_board(board)
-        else:
-            self.list_boards()
+        # Fetch Trello data and produce one or more Org files.
 
-    def copy_board(self, board):
-        self.write("#+TITLE: Trello board %s\n"
-                   '#+STARTUP: overview\n'
-                   % board.name.decode(encoding))
+        def board_write(name):
+            return (codecs
+                    .open(self.org_file_name(name), 'w', encoding=encoding)
+                    .write)
+
+        if self.auto:
+            self.board_index(board_write(index_name))
+            for board in self.client.list_boards():
+                if self.include or not board.closed:
+                    name = board.name.decode(encoding)
+                    self.copy_board(board, board_write(name))
+        elif self.lines:
+            self.board_list(codecs.getwriter(encoding)(sys.stdout).write)
+        elif arguments[0] == index_name:
+            self.board_index(board_write(index_name))
+        else:
+            board = self.find_board(arguments[0].decode(encoding))
+            name = board.name.decode(encoding)
+            self.copy_board(board, board_write(name))
+
+    def board_index(self, write):
+        write("#+TITLE: Trello board index\n"
+              '#+STARTUP: showall\n'
+              "* Trello boards\n")
+        for board in self.client.list_boards():
+            if self.include or not board.closed:
+                name = board.name.decode(encoding)
+                self.write_item(
+                    '[[file:%s][%s]]' % (self.org_file_name(name), name),
+                    write,
+                    done=board.closed if self.include else None,
+                    id=board.id, url=board.url)
+
+    def board_list(self, write):
+        write('%s %s\n' % (self.org_file_name(index_name), index_name))
+        for board in self.client.list_boards():
+            if self.include or not board.closed:
+                name = board.name.decode(encoding)
+                write('%s %s\n' % (self.org_file_name(name), name))
+
+    def copy_board(self, board, write):
+        write("#+TITLE: Trello board %s\n"
+              '#+STARTUP: overview\n'
+              % board.name.decode(encoding))
         for list in board.all_lists():
             if self.include or not list.closed:
-                self.copy_list(list)
+                self.copy_list(list, write)
 
-    def copy_card(self, card):
+    def copy_card(self, card, write):
         card.fetch()
         try:
             date = card.create_date.strftime('%Y-%m-%d')
         except IndexError:
             date = None
-        self.write_header(2, card.name.decode(encoding),
+        self.write_header(2, card.name.decode(encoding), write,
                           done=card.closed if self.include else None,
                           date=date, id=card.id, url=card.url)
         if card.description:
-            self.write_item(card.description.rstrip())
+            self.write_item(card.description.rstrip(), write)
         for checklist in card.checklists:
-            self.copy_checklist(checklist)
+            self.copy_checklist(checklist, write)
         if card.comments:
-            self.write_header(3, 'Comments')
+            self.write_header(3, 'Comments', write)
             for comment in card.comments:
-                self.copy_comment(comment)
+                self.copy_comment(comment, write)
 
-    def copy_checklist(self, checklist):
-        self.write_header(3, checklist.name, id=checklist.id)
+    def copy_checklist(self, checklist, write):
+        self.write_header(3, checklist.name, write, id=checklist.id)
         for item in checklist.items:
-            self.write_item(item['name'], done=item['checked'], id=item['id'])
+            self.write_item(item['name'], write,
+                            done=item['checked'], id=item['id'])
 
-    def copy_comment(self, comment):
-        self.write_item(comment['memberCreator']['username'],
+    def copy_comment(self, comment, write):
+        self.write_item(comment['memberCreator']['username'], write,
                         date=comment['date'][:10], id=comment['id'])
         text = self.to_org(comment['data']['text'])
         text = ''.join(('  ' + line).rstrip()
                        for line in text.splitlines(True))
         if not text.endswith('\n'):
             text += '\n'
-        self.write(text)
+        write(text)
 
-    def copy_list(self, list):
-        self.write_header(1, list.name.decode(encoding),
+    def copy_list(self, list, write):
+        self.write_header(1, list.name.decode(encoding), write,
                           done=list.closed if self.include else None,
                           id=list.id)
         for card in list.list_cards():
             if self.include or not card.closed:
-                self.copy_card(card)
+                self.copy_card(card, write)
 
     def find_board(self, name):
         for board in self.client.list_boards():
@@ -154,57 +217,51 @@ class Main:
                 return board
         sys.exit("No such board: %s" % name)
 
-    def list_boards(self):
-        self.write("#+TITLE: Trello board index\n"
-                   '#+STARTUP: showall\n'
-                   "* Trello boards\n")
-        for board in self.client.list_boards():
-            if self.include or not board.closed:
-                self.write_item(board.name.decode(encoding),
-                                done=board.closed if self.include else None,
-                                id=board.id, url=board.url)
-
-    def write_header(self, level, text,
+    def write_header(self, level, text, write,
                      date=None, done=None, id=None, url=None):
-        self.write('*' * level + ' ')
+        write('*' * level + ' ')
         if done is not None:
-            self.write(('TODO', 'DONE')[done] + ' ')
-        self.write(self.to_org(text.lstrip()) + '\n')
+            write(('TODO', 'DONE')[done] + ' ')
+        write(self.to_org(text.lstrip()) + '\n')
         if id:
-            self.write(':PROPERTIES:\n'
-                       ':orgtrello-id: %s\n'
-                       ':END:'
-                       '\n'
-                       % id)
+            write(':PROPERTIES:\n'
+                  ':orgtrello-id: %s\n'
+                  ':END:'
+                  '\n'
+                  % id)
         if date or url:
             if url:
-                self.write('([[%s][Trello]])' % url)
+                write(' ([[%s][Trello]])' % url)
             if date and url:
-                self.write(' ')
+                write(' ')
             if date:
-                self.write('[%s]' % date)
-            self.write('\n')
+                write(' [%s]' % date)
+            write('\n')
 
-    def write_item(self, text, date=None, done=None, id=None, url=None):
-        self.write('- ')
+    def write_item(self, text, write, date=None, done=None, id=None, url=None):
+        write('- ')
         if done is not None:
-            self.write('[%s] ' % ' X'[done])
+            write('[%s] ' % ' X'[done])
+        write(self.to_org(text.lstrip()))
         if url:
-            self.write('[[%s][%s]]' % (url, self.to_org(text.lstrip())))
-        else:
-            self.write(self.to_org(text.lstrip()))
+            write(' ([[%s][Trello]])' % url)
         if date:
-            self.write(' [%s]' % date)
+            write(' [%s]' % date)
         if id:
-            self.write(' :PROPERTIES: {"orgtrello-id":"%s"}' % id)
-        self.write('\n')
+            write(' :PROPERTIES: {"orgtrello-id":"%s"}' % id)
+        write('\n')
+
+    @staticmethod
+    def org_file_name(board_name):
+        pattern = re.compile('\\W+', re.UNICODE)
+        return pattern.sub('_', board_name) + '.org'
 
     @staticmethod
     def from_org(text):
         fragments = []
         position = 0
         for match in re.finditer('([/*=~])([^ \t\n](.*?[^ \t\n])?)\\1',
-                                  text):
+                                 text):
             delimiter, inner, _ = match.groups()
             # Avoid this match outside proper Org context.
             if not (match.start() == 0

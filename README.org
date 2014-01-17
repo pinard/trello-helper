@@ -57,7 +57,8 @@ somewhere on the Emacs load path, and put these lines in =~/.emacs=:
     (load-library "trello-helper")
 
     (defun fp-trello-helper-mode-hook ()
-      (org-content 2))
+      (unless (string-equal (buffer-name) "Trello_board_index.org")
+        (org-content 2)))
 
     (add-hook 'trello-helper-mode-hook 'fp-trello-helper-mode-hook)
   #+END_SRC
@@ -78,19 +79,23 @@ Emacs, one may have to explicit it with a line like this one:
 
 ** Usage
 
-To create an index file in Org format reaching all you Trello boards,
-do something like this in a shell:
+To create a =Trello_board_index.org= file reaching all you Trello
+boards, do this special command in a shell:
 
   #+BEGIN_SRC sh
-    trello-helper > Boards.org
+    trello-helper "Trello board index"
   #+END_SRC
 
 To initialize an Org format copy of a Trello board named =BOARD NAME=,
-do a command like this in a shell:
+do this command in a shell:
 
   #+BEGIN_SRC sh
-    trello-helper 'BOARD NAME' > Board_Name.org
+    trello-helper "BOARD NAME"
   #+END_SRC
+
+The created Org file is derived from =BOARD NAME= by turning each
+sequence of punctuation characters into a single underline character,
+then appending the suffix =.org= to the result.
 
 When visiting such an Org format file within Emacs, you'll find links
 that you may click on (or use *C-c C-o* if you prefer), with the effect
@@ -104,15 +109,28 @@ rewritten so it displays more correctly within Trello pages.
 
 The *trello-helper* script accepts these options:
 
+  - -a :: This option automates calling *trello-helper* for creating an
+          Org file indexing all Trello boards, then for producing an
+          Org file for each Trello board in turn.
+
   - -d :: This option triggers debugging.  Once the program has
           established itself as a Trello client, it triggers an
           IPython interactive session, with *self* initialized as the
           /Main/ instance.
 
+  - -h :: This option asks for a short help remainder.  The program
+          exits without doing any further processing.
+
   - -i :: This option forces the inclusion of closed boards, lists and
           cards in the produced Org file, as these are normally
           excluded.  When this option is used, indicators like =TODO= or
           =DONE= are added respectively for opened and closed elements.
+
+  - -l :: This option is meant to help shell scripting.  It produces
+          on standard output a list of lines, each of which contains
+          the name of an Org file, a space, and the (unquoted) name of
+          the corresponding Trello board.  There is one such line for
+          the Trello board index, and for each available Trello board.
 
   - -m :: This option reads some Org text from standard input, does a
           half-hearted transcription of its inline markup to Markdown,
